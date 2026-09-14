@@ -12,7 +12,9 @@ CREATE TABLE usuarios (
 CREATE TABLE sessoes (
     id BIGSERIAL PRIMARY KEY,
     usuario_id BIGINT NOT NULL
+        //precisa ter um id em usuarios
         REFERENCES usuarios(id)
+        //deleta as sessões se o usuário for deletado
         ON DELETE CASCADE,
     token_hash TEXT NOT NULL UNIQUE,
     criado_em TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
