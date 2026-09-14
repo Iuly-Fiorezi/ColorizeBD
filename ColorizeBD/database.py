@@ -11,3 +11,4 @@ def conectar():
         user=os.getenv("DB_USER", "colorize_app"),
         password=os.environ["DB_PASSWORD"]
     )
+    
