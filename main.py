@@ -5,7 +5,7 @@ import urllib.request
 import urllib.error
 
 import customtkinter
-from PIL import ImageGrab
+from PIL import ImageGrab, Image
 
 from cores_windows import ControladorGamma
 
