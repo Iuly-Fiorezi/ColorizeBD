@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from psycopg.errors import UniqueViolation
 
 from auth import (
@@ -18,16 +18,26 @@ app = FastAPI()
 
 seguranca = HTTPBearer()
 
-//classe, molde doq espera receber pra executar função de cadastro
+
+# Molde dos dados recebidos no cadastro.
 class CadastroUsuario(BaseModel):
     nome: str
     email: str
     senha: str
 
-//mesma coisa soq pra login
+
+# Molde dos dados recebidos no login.
 class LoginUsuario(BaseModel):
     email: str
     senha: str
+
+
+# Molde dos dados recebidos para criar um filtro.
+class FiltroUsuario(BaseModel):
+    nome: str
+    intensidade_r: float = Field(ge=0.5, le=1.0)
+    intensidade_g: float = Field(ge=0.5, le=1.0)
+    intensidade_b: float = Field(ge=0.5, le=1.0)
 
 
 def obter_usuario_autenticado(
@@ -85,20 +95,20 @@ def obter_admin(
 
     return usuario_atual
 
-//o app, que é objeto da FastAPI pega o endereço do código, então pode ser acessado
+
+# Rota simples para verificar se o servidor está funcionando.
 @app.get("/")
 def inicio():
     return {
         "mensagem": "Servidor funcionando"
     }
 
-//roda a função quando o /me for executado
+
+# Retorna os dados do usuário autenticado.
 @app.get("/me")
 def meu_usuario(
-    //pra definir usuario atual o usuario precisa estar autenticado
     usuario_atual=Depends(obter_usuario_autenticado)
 ):
-    //retorna essas informações
     return {
         "id": usuario_atual["id"],
         "nome": usuario_atual["nome"],
@@ -107,6 +117,7 @@ def meu_usuario(
     }
 
 
+# Rota de teste para confirmar a permissão de administrador.
 @app.get("/admin/teste")
 def teste_admin(
     admin=Depends(obter_admin)
@@ -121,26 +132,21 @@ def teste_admin(
         }
     }
 
-//quando executado o cadastro roda
+
 @app.post("/cadastro")
 def cadastrar(usuario: CadastroUsuario):
-    //gera a senha hash usando a função criada em auth
     senha_hash = gerar_hash_senha(usuario.senha)
 
-    //pega as informações e transforma em sql, mas ainda n define no bd
     sql = """
         INSERT INTO usuarios (nome, email, senha_hash)
         VALUES (%s, %s, %s)
         RETURNING id, criado_em;
     """
 
-    //ativa afunção conectar do database
     conexao = conectar()
-    //objeto que usamos pra mandar sql pela conexão
     cursor = conexao.cursor()
 
     try:
-        //envia de verdade para o bd
         cursor.execute(
             sql,
             (
@@ -150,18 +156,15 @@ def cadastrar(usuario: CadastroUsuario):
             )
         )
 
-        //recebe a linha retornada no bd
         resultado = cursor.fetchone()
-        //separa o id a data de criação retornados
         id_usuario = resultado[0]
         criado_em = resultado[1]
 
-        //salva definitavamente
         conexao.commit()
-    //
+
     except UniqueViolation:
         conexao.rollback()
-        
+
         raise HTTPException(
             status_code=409,
             detail="Este email já está cadastrado"
@@ -288,4 +291,54 @@ def logout(
 
     return {
         "mensagem": "Logout realizado com sucesso"
+    }
+
+
+@app.post("/filtros")
+def criar_filtro(
+    filtro: FiltroUsuario,
+    usuario_atual=Depends(obter_usuario_autenticado)
+):
+    sql = """
+        INSERT INTO filtros (
+            usuario_id,
+            nome,
+            intensidade_r,
+            intensidade_g,
+            intensidade_b
+        )
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id;
+    """
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    try:
+        cursor.execute(
+            sql,
+            (
+                usuario_atual["id"],
+                filtro.nome,
+                filtro.intensidade_r,
+                filtro.intensidade_g,
+                filtro.intensidade_b
+            )
+        )
+
+        resultado = cursor.fetchone()
+        id_filtro = resultado[0]
+
+        conexao.commit()
+
+    finally:
+        cursor.close()
+        conexao.close()
+
+    return {
+        "id": id_filtro,
+        "nome": filtro.nome,
+        "intensidade_r": filtro.intensidade_r,
+        "intensidade_g": filtro.intensidade_g,
+        "intensidade_b": filtro.intensidade_b
     }

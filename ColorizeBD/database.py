@@ -4,19 +4,20 @@ import psycopg
 
 
 def conectar():
-    //abre a conexão com banco
+    # Abre a conexão com o banco PostgreSQL.
     return psycopg.connect(
-        //onde está
+        # Onde o banco está.
         host=os.getenv("DB_HOST", "localhost"),
-        //porta
+
+        # Porta do PostgreSQL.
         port=os.getenv("DB_PORT", "5432"),
-        //qual banco vai usar
+
+        # Banco usado pelo servidor.
         dbname=os.getenv("DB_NAME", "colorizedb"),
-        //quem vai usar
+
+        # Usuário PostgreSQL usado pela aplicação.
         user=os.getenv("DB_USER", "colorize_app"),
-        //qual a senha
+
+        # A senha é obrigatória e vem de uma variável de ambiente.
         password=os.environ["DB_PASSWORD"]
-        //é diferente pq se for nulo vai dar erro
-        //no geral tenta pegar o da esquerda, se não tiver o da direita vai ser definido
     )
-    
